@@ -33,7 +33,25 @@ variable "s3_config" {
   }))
 }
 
+variable "mwaa_config" {
+  description = "mwaa configurations"
+  type = object({
+    mwaa_name     = string
+    s3_dags_path  = string
+    s3_bucket_key = string
+    s3_access = list(object({
+      bucket_key = string
+      actions    = list(string)
+    }))
+  })
+}
 
 variable "tags" {
   description = "Tags to apply to resources"
+}
+
+variable "region" {
+  type        = string
+  default     = "us-east-1"
+  description = "AWS region"
 }
