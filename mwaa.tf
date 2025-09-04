@@ -55,7 +55,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         ]
         Resource = "*"
       },
-      
+
       # AWS-managed KMS permissions (optimized)
       {
         Effect = "Allow"
@@ -74,7 +74,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           }
         }
       },
-      
+
       # CloudWatch permissions (required)
       {
         Effect = "Allow"
@@ -88,11 +88,11 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Resource = "arn:aws:logs:*:*:log-group:airflow-${var.mwaa_config.mwaa_name}-*"
       },
       {
-        Effect = "Allow"
-        Action = "cloudwatch:PutMetricData"
+        Effect   = "Allow"
+        Action   = "cloudwatch:PutMetricData"
         Resource = "*"
       },
-      
+
       # EC2 networking permissions (read-only only - optimized)
       {
         Effect = "Allow"
@@ -104,7 +104,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         ]
         Resource = "*"
       },
-      
+
       # SQS permissions (required for Celery executor)
       {
         Effect = "Allow"
@@ -118,7 +118,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         ]
         Resource = "arn:aws:sqs:${var.region}:*:airflow-celery-*"
       },
-      
+
       # Airflow metrics permission (required)
       {
         Effect = "Allow"
@@ -174,11 +174,11 @@ resource "aws_vpc_endpoint" "s3" {
 # MWAA Environment (Using AWS-managed KMS)
 #########################
 resource "aws_mwaa_environment" "mwaa" {
-  name                 = var.mwaa_config.mwaa_name
-  execution_role_arn   = aws_iam_role.mwaa_execution_role.arn
-  source_bucket_arn    = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
-  dag_s3_path          = var.mwaa_config.s3_dags_path
-  airflow_version      = "2.8.1"
+  name               = var.mwaa_config.mwaa_name
+  execution_role_arn = aws_iam_role.mwaa_execution_role.arn
+  source_bucket_arn  = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
+  dag_s3_path        = var.mwaa_config.s3_dags_path
+  airflow_version    = "2.8.1"
 
   # Note: kms_key parameter is omitted to use AWS-managed KMS
 
@@ -212,14 +212,14 @@ resource "aws_mwaa_environment" "mwaa" {
 
   # Airflow configuration options
   airflow_configuration_options = {
-    "core.lazy_load_plugins" = "False"
-    "webserver.expose_config" = "True"
-    "core.default_task_retries" = "3"
-    "core.parallelism" = "40"
+    "core.lazy_load_plugins"       = "False"
+    "webserver.expose_config"      = "True"
+    "core.default_task_retries"    = "3"
+    "core.parallelism"             = "40"
     "scheduler.catchup_by_default" = "False"
   }
 
-  tags = merge(var.tags, { 
+  tags = merge(var.tags, {
     Name = var.mwaa_config.mwaa_name,
     Team = "ReportingAndAnalytics"
   })
@@ -243,6 +243,11 @@ resource "aws_iam_role" "mwaa_ui_access" {
         AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
       }
       Action = "sts:AssumeRole"
+      Condition = {
+        StringEquals = {
+          "aws:PrincipalType" = "User"
+        }
+      }
     }]
   })
 
