@@ -184,13 +184,32 @@ resource "aws_mwaa_environment" "mwaa" {
     security_group_ids = [aws_security_group.mwaa_sg.id]
   }
 
-  logging_configuration {
-    dag_processing_logs { enabled = true log_level = "INFO" }
-    scheduler_logs      { enabled = true log_level = "INFO" }
-    task_logs           { enabled = true log_level = "INFO" }
-    webserver_logs      { enabled = true log_level = "INFO" }
-    worker_logs         { enabled = true log_level = "INFO" }
+ logging_configuration {
+  dag_processing_logs {
+    enabled   = true
+    log_level = "INFO"
   }
+
+  scheduler_logs {
+    enabled   = true
+    log_level = "INFO"
+  }
+
+  task_logs {
+    enabled   = true
+    log_level = "INFO"
+  }
+
+  webserver_logs {
+    enabled   = true
+    log_level = "INFO"
+  }
+
+  worker_logs {
+    enabled   = true
+    log_level = "INFO"
+  }
+}
 
   airflow_configuration_options = {
     "core.lazy_load_plugins"       = "False"
