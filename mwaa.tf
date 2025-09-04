@@ -184,8 +184,6 @@ resource "aws_mwaa_environment" "mwaa" {
   execution_role_arn   = aws_iam_role.mwaa_execution_role.arn
   source_bucket_arn    = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
   dag_s3_path          = var.mwaa_config.s3_dags_path
-  requirements_s3_path = "requirements.txt"
-  plugins_s3_path      = "plugins.zip"
   airflow_version      = "2.8.1"
 
   # Note: kms_key parameter is omitted to use AWS-managed KMS
