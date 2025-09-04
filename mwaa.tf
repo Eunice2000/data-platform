@@ -1,5 +1,3 @@
-
-
 #########################
 # MWAA Execution Role
 #########################
@@ -24,7 +22,7 @@ resource "aws_iam_role" "mwaa_execution_role" {
 }
 
 #########################
-# MWAA Execution Role Policy (Simplified for AWS-managed KMS)
+# MWAA Execution Role Policy (Optimized - No Over-Provisioning)
 #########################
 resource "aws_iam_role_policy" "mwaa_execution_policy" {
   name = "${var.mwaa_config.mwaa_name}-execution-policy"
@@ -33,13 +31,11 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # S3 permissions for existing buckets
+      # S3 permissions (read-only only)
       {
         Effect = "Allow"
         Action = [
           "s3:GetObject*",
-          "s3:PutObject*",
-          "s3:DeleteObject*",
           "s3:ListBucket",
           "s3:GetBucketLocation",
           "s3:GetBucketVersioning",
@@ -50,7 +46,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           "${module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn}/*"
         ]
       },
-      # CRITICAL FIX: Added missing permission for S3 public access block check
+      # S3 public access block check (required)
       {
         Effect = "Allow"
         Action = [
@@ -60,7 +56,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Resource = "*"
       },
       
-      # AWS-managed KMS permissions
+      # AWS-managed KMS permissions (optimized)
       {
         Effect = "Allow"
         Action = [
@@ -79,7 +75,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         }
       },
       
-      # CloudWatch permissions
+      # CloudWatch permissions (required)
       {
         Effect = "Allow"
         Action = [
@@ -97,13 +93,11 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Resource = "*"
       },
       
-      # EC2 networking permissions
+      # EC2 networking permissions (read-only only - optimized)
       {
         Effect = "Allow"
         Action = [
-          "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface",
           "ec2:DescribeVpcs",
           "ec2:DescribeSubnets",
           "ec2:DescribeSecurityGroups"
@@ -125,7 +119,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Resource = "arn:aws:sqs:${var.region}:*:airflow-celery-*"
       },
       
-      # Airflow basic permissions
+      # Airflow metrics permission (required)
       {
         Effect = "Allow"
         Action = [
