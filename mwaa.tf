@@ -1,30 +1,3 @@
-#########################
-# S3 Bucket for DAGs, Plugins, and Requirements
-#########################
-resource "aws_s3_bucket" "mwaa_dags" {
-  bucket = "${var.mwaa_config.mwaa_name}-dags-bucket"
-  
-  tags = merge(var.tags, { 
-    Name = "${var.mwaa_config.mwaa_name}-dags-bucket",
-    Purpose = "MWAA DAGs and dependencies"
-  })
-}
-
-resource "aws_s3_bucket_versioning" "mwaa_dags" {
-  bucket = aws_s3_bucket.mwaa_dags.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "mwaa_dags" {
-  bucket = aws_s3_bucket.mwaa_dags.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
 
 #########################
 # KMS Key for Encryption
@@ -112,7 +85,7 @@ resource "aws_iam_role" "mwaa_execution_role" {
 }
 
 #########################
-# MWAA Execution Role Policy
+# MWAA Execution Role Policy (FIXED - Added missing permissions)
 #########################
 resource "aws_iam_role_policy" "mwaa_execution_policy" {
   name = "${var.mwaa_config.mwaa_name}-execution-policy"
@@ -121,6 +94,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # Airflow permissions
       {
         Effect = "Allow"
         Action = "airflow:*"
@@ -141,97 +115,46 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Action = "iam:ListRoles"
         Resource = "*"
       },
-      {
-        Effect = "Allow"
-        Action = "iam:CreatePolicy"
-        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/service-role/MWAA-Execution-Policy*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:AttachRolePolicy",
-          "iam:CreateRole"
-        ]
-        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/service-role/AmazonMWAA*"
-      },
-      {
-        Effect = "Allow"
-        Action = "iam:CreateServiceLinkedRole"
-        Resource = "arn:aws:iam::*:role/aws-service-role/airflow.amazonaws.com/AWSServiceRoleForAmazonMWAA"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetBucketLocation",
-          "s3:ListAllMyBuckets",
-          "s3:ListBucket",
-          "s3:ListBucketVersions"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:CreateBucket",
-          "s3:PutObject",
-          "s3:GetEncryptionConfiguration"
-        ]
-        Resource = "arn:aws:s3:::*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeVpcs",
-          "ec2:DescribeRouteTables"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:AuthorizeSecurityGroupIngress",
-          "ec2:CreateSecurityGroup"
-        ]
-        Resource = "arn:aws:ec2:*:*:security-group/airflow-security-group-*"
-      },
-      {
-        Effect = "Allow"
-        Action = "kms:ListAliases"
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = "ec2:CreateVpcEndpoint"
-        Resource = [
-          "arn:aws:ec2:*:*:vpc-endpoint/*",
-          "arn:aws:ec2:*:*:vpc/*",
-          "arn:aws:ec2:*:*:subnet/*",
-          "arn:aws:ec2:*:*:security-group/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = "ec2:CreateNetworkInterface"
-        Resource = [
-          "arn:aws:ec2:*:*:subnet/*",
-          "arn:aws:ec2:*:*:network-interface/*"
-        ]
-      },
-      # Additional permissions for MWAA operations
+      
+      # S3 permissions for existing buckets
       {
         Effect = "Allow"
         Action = [
           "s3:GetObject*",
           "s3:PutObject*",
-          "s3:DeleteObject*"
+          "s3:DeleteObject*",
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:GetBucketVersioning"
         ]
         Resource = [
-          "${aws_s3_bucket.mwaa_dags.arn}/*",
-          "${aws_s3_bucket.mwaa_dags.arn}"
+          module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn,
+          "${module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn}/*"
         ]
       },
+      # CRITICAL FIX: Added missing permission for S3 public access block check
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetAccountPublicAccessBlock",
+          "s3:GetBucketPublicAccessBlock"
+        ]
+        Resource = "*"
+      },
+      
+      # KMS permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey",
+          "kms:Encrypt"
+        ]
+        Resource = aws_kms_key.mwaa_kms.arn
+      },
+      
+      # CloudWatch permissions
       {
         Effect = "Allow"
         Action = [
@@ -239,8 +162,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:GetLogEvents",
-          "logs:GetLogRecord",
-          "logs:DescribeLogGroups"
+          "logs:GetLogRecord"
         ]
         Resource = "arn:aws:logs:*:*:log-group:airflow-${var.mwaa_config.mwaa_name}-*"
       },
@@ -249,6 +171,22 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Action = "cloudwatch:PutMetricData"
         Resource = "*"
       },
+      
+      # EC2 networking permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups"
+        ]
+        Resource = "*"
+      },
+      
+      # SQS permissions (required for Celery executor)
       {
         Effect = "Allow"
         Action = [
@@ -260,15 +198,6 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           "sqs:SendMessage"
         ]
         Resource = "arn:aws:sqs:${var.region}:*:airflow-celery-*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "kms:Decrypt",
-          "kms:GenerateDataKey",
-          "kms:DescribeKey"
-        ]
-        Resource = aws_kms_key.mwaa_kms.arn
       }
     ]
   })
@@ -282,28 +211,12 @@ resource "aws_security_group" "mwaa_sg" {
   description = "Security group for MWAA environment"
   vpc_id      = module.vpc.vpc_id
 
-  # Self-referencing inbound rules
+  # Self-referencing inbound rules (required for MWAA components)
   ingress {
     from_port = 0
     to_port   = 0
     protocol  = "-1"
     self      = true
-  }
-
-  # Allow HTTPS for web server
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_config.cidr]
-  }
-
-  # Allow PostgreSQL for metadata database
-  ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_config.cidr]
   }
 
   # All outbound traffic
@@ -318,7 +231,7 @@ resource "aws_security_group" "mwaa_sg" {
 }
 
 #########################
-# VPC Endpoints
+# VPC Endpoints (Only essential S3 endpoint)
 #########################
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = module.vpc.vpc_id
@@ -329,51 +242,18 @@ resource "aws_vpc_endpoint" "s3" {
   tags = merge(var.tags, { Name = "${var.vpc_config.name}-s3-endpoint" })
 }
 
-resource "aws_vpc_endpoint" "kms" {
-  vpc_id              = module.vpc.vpc_id
-  service_name        = "com.amazonaws.${var.region}.kms"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = slice(module.vpc.private_subnets, 0, 2)
-  security_group_ids  = [aws_security_group.mwaa_sg.id]
-  private_dns_enabled = true
-
-  tags = merge(var.tags, { Name = "${var.vpc_config.name}-kms-endpoint" })
-}
-
-resource "aws_vpc_endpoint" "logs" {
-  vpc_id              = module.vpc.vpc_id
-  service_name        = "com.amazonaws.${var.region}.logs"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = slice(module.vpc.private_subnets, 0, 2)
-  security_group_ids  = [aws_security_group.mwaa_sg.id]
-  private_dns_enabled = true
-
-  tags = merge(var.tags, { Name = "${var.vpc_config.name}-logs-endpoint" })
-}
-
-resource "aws_vpc_endpoint" "sqs" {
-  vpc_id              = module.vpc.vpc_id
-  service_name        = "com.amazonaws.${var.region}.sqs"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = slice(module.vpc.private_subnets, 0, 2)
-  security_group_ids  = [aws_security_group.mwaa_sg.id]
-  private_dns_enabled = true
-
-  tags = merge(var.tags, { Name = "${var.vpc_config.name}-sqs-endpoint" })
-}
-
 #########################
 # MWAA Environment
 #########################
 resource "aws_mwaa_environment" "mwaa" {
-  name               = var.mwaa_config.mwaa_name
-  execution_role_arn = aws_iam_role.mwaa_execution_role.arn
-  source_bucket_arn  = aws_s3_bucket.mwaa_dags.arn
-  dag_s3_path        = "dags/"
+  name                 = var.mwaa_config.mwaa_name
+  execution_role_arn   = aws_iam_role.mwaa_execution_role.arn
+  source_bucket_arn    = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
+  dag_s3_path          = var.mwaa_config.s3_dags_path
   requirements_s3_path = "requirements.txt"
-  plugins_s3_path    = "plugins.zip"
-  airflow_version    = "2.8.1"  # Latest tested version per requirements
-  kms_key            = aws_kms_key.mwaa_kms.arn
+  plugins_s3_path      = "plugins.zip"
+  airflow_version      = "2.8.1"
+  kms_key              = aws_kms_key.mwaa_kms.arn
 
   network_configuration {
     subnet_ids         = slice(module.vpc.private_subnets, 0, 2)
@@ -405,7 +285,7 @@ resource "aws_mwaa_environment" "mwaa" {
 
   # Airflow configuration options
   airflow_configuration_options = {
-    "core.lazy_load_plugins" = "False"  # Required for custom plugins in Airflow v2 :cite[1]
+    "core.lazy_load_plugins" = "False"
     "webserver.expose_config" = "True"
     "core.default_task_retries" = "3"
     "core.parallelism" = "40"
@@ -418,15 +298,12 @@ resource "aws_mwaa_environment" "mwaa" {
   })
 
   depends_on = [
-    aws_vpc_endpoint.s3,
-    aws_vpc_endpoint.kms,
-    aws_vpc_endpoint.logs,
-    aws_vpc_endpoint.sqs
+    aws_vpc_endpoint.s3
   ]
 }
 
 #########################
-# IAM Role for Airflow UI Access
+# IAM Role for Airflow UI Access (FIXED - Custom policy)
 #########################
 resource "aws_iam_role" "mwaa_ui_access" {
   name = "${var.mwaa_config.mwaa_name}-ui-access-role"
@@ -445,7 +322,23 @@ resource "aws_iam_role" "mwaa_ui_access" {
   tags = merge(var.tags, { Name = "${var.mwaa_config.mwaa_name}-ui-access-role" })
 }
 
-resource "aws_iam_role_policy_attachment" "mwaa_ui_access" {
-  role       = aws_iam_role.mwaa_ui_access.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonMWAAWebServerAccess"
+# Custom policy for UI access (replaces non-existent managed policy)
+resource "aws_iam_role_policy" "mwaa_ui_access" {
+  name = "${var.mwaa_config.mwaa_name}-ui-access-policy"
+  role = aws_iam_role.mwaa_ui_access.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "airflow:GetEnvironment",
+          "airflow:ListEnvironments",
+          "airflow:CreateWebLoginToken"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
