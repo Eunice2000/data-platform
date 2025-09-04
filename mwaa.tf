@@ -1,65 +1,4 @@
 
-#########################
-# KMS Key for Encryption
-#########################
-resource "aws_kms_key" "mwaa_kms" {
-  description             = "KMS key for MWAA environment ${var.mwaa_config.mwaa_name}"
-  deletion_window_in_days = 30
-  enable_key_rotation     = true
-  policy                  = data.aws_iam_policy_document.mwaa_kms_policy.json
-
-  tags = merge(var.tags, { Name = "${var.mwaa_config.mwaa_name}-kms-key" })
-}
-
-resource "aws_kms_alias" "mwaa_kms" {
-  name          = "alias/${var.mwaa_config.mwaa_name}-mwaa-key"
-  target_key_id = aws_kms_key.mwaa_kms.key_id
-}
-
-data "aws_iam_policy_document" "mwaa_kms_policy" {
-  statement {
-    sid       = "Enable IAM User Permissions"
-    effect    = "Allow"
-    actions   = ["kms:*"]
-    resources = ["*"]
-    principals {
-      type        = "AWS"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
-    }
-  }
-
-  statement {
-    sid    = "Allow MWAA to use the key"
-    effect = "Allow"
-    actions = [
-      "kms:Decrypt",
-      "kms:DescribeKey",
-      "kms:GenerateDataKey*",
-      "kms:Encrypt"
-    ]
-    resources = ["*"]
-    principals {
-      type        = "Service"
-      identifiers = ["airflow.amazonaws.com", "airflow-env.amazonaws.com"]
-    }
-  }
-
-  statement {
-    sid    = "Allow CloudWatch Logs to use the key"
-    effect = "Allow"
-    actions = [
-      "kms:Encrypt*",
-      "kms:Decrypt*",
-      "kms:GenerateDataKey*",
-      "kms:Describe*"
-    ]
-    resources = ["*"]
-    principals {
-      type        = "Service"
-      identifiers = ["logs.${var.region}.amazonaws.com"]
-    }
-  }
-}
 
 #########################
 # MWAA Execution Role
@@ -85,7 +24,7 @@ resource "aws_iam_role" "mwaa_execution_role" {
 }
 
 #########################
-# MWAA Execution Role Policy (FIXED - Added missing permissions)
+# MWAA Execution Role Policy (Simplified for AWS-managed KMS)
 #########################
 resource "aws_iam_role_policy" "mwaa_execution_policy" {
   name = "${var.mwaa_config.mwaa_name}-execution-policy"
@@ -94,28 +33,6 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # Airflow permissions
-      {
-        Effect = "Allow"
-        Action = "airflow:*"
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = "iam:PassRole"
-        Resource = "*"
-        Condition = {
-          StringLike = {
-            "iam:PassedToService" = "airflow.amazonaws.com"
-          }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = "iam:ListRoles"
-        Resource = "*"
-      },
-      
       # S3 permissions for existing buckets
       {
         Effect = "Allow"
@@ -142,16 +59,23 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Resource = "*"
       },
       
-      # KMS permissions
+      # AWS-managed KMS permissions
       {
         Effect = "Allow"
         Action = [
           "kms:Decrypt",
           "kms:GenerateDataKey",
-          "kms:DescribeKey",
-          "kms:Encrypt"
+          "kms:DescribeKey"
         ]
-        Resource = aws_kms_key.mwaa_kms.arn
+        Resource = "*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = [
+              "sqs.${var.region}.amazonaws.com",
+              "s3.${var.region}.amazonaws.com"
+            ]
+          }
+        }
       },
       
       # CloudWatch permissions
@@ -198,6 +122,15 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           "sqs:SendMessage"
         ]
         Resource = "arn:aws:sqs:${var.region}:*:airflow-celery-*"
+      },
+      
+      # Airflow basic permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "airflow:PublishMetrics"
+        ]
+        Resource = "arn:aws:airflow:${var.region}:${data.aws_caller_identity.current.account_id}:environment/${var.mwaa_config.mwaa_name}"
       }
     ]
   })
@@ -243,7 +176,7 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 #########################
-# MWAA Environment
+# MWAA Environment (Using AWS-managed KMS)
 #########################
 resource "aws_mwaa_environment" "mwaa" {
   name                 = var.mwaa_config.mwaa_name
@@ -253,7 +186,8 @@ resource "aws_mwaa_environment" "mwaa" {
   requirements_s3_path = "requirements.txt"
   plugins_s3_path      = "plugins.zip"
   airflow_version      = "2.8.1"
-  kms_key              = aws_kms_key.mwaa_kms.arn
+
+  # Note: kms_key parameter is omitted to use AWS-managed KMS
 
   network_configuration {
     subnet_ids         = slice(module.vpc.private_subnets, 0, 2)
@@ -303,7 +237,7 @@ resource "aws_mwaa_environment" "mwaa" {
 }
 
 #########################
-# IAM Role for Airflow UI Access (FIXED - Custom policy)
+# IAM Role for Airflow UI Access (Custom policy)
 #########################
 resource "aws_iam_role" "mwaa_ui_access" {
   name = "${var.mwaa_config.mwaa_name}-ui-access-role"
@@ -322,7 +256,7 @@ resource "aws_iam_role" "mwaa_ui_access" {
   tags = merge(var.tags, { Name = "${var.mwaa_config.mwaa_name}-ui-access-role" })
 }
 
-# Custom policy for UI access (replaces non-existent managed policy)
+# Custom policy for UI access
 resource "aws_iam_role_policy" "mwaa_ui_access" {
   name = "${var.mwaa_config.mwaa_name}-ui-access-policy"
   role = aws_iam_role.mwaa_ui_access.id
