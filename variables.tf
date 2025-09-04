@@ -43,6 +43,8 @@ variable "mwaa_config" {
       bucket_key = string
       actions    = list(string)
     }))
+    enable_plugins      = optional(bool, false)
+    enable_requirements = optional(bool, false)
   })
 }
 
@@ -54,4 +56,9 @@ variable "region" {
   type        = string
   default     = "us-east-1"
   description = "AWS region"
+}
+
+variable "account_id" {
+  type        = string
+  description = "AWS account ID"
 }

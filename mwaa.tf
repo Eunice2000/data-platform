@@ -128,7 +128,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Action = [
           "airflow:PublishMetrics"
         ]
-        Resource = "arn:aws:airflow:${var.region}:${data.aws_caller_identity.current.account_id}:environment/${var.mwaa_config.mwaa_name}"
+        Resource = "arn:aws:airflow:${var.region}:${var.account_id}:environment/${var.mwaa_config.mwaa_name}"
       }
     ]
   })
@@ -177,12 +177,12 @@ resource "aws_vpc_endpoint" "s3" {
 # MWAA Environment (Using AWS-managed KMS)
 #########################
 resource "aws_mwaa_environment" "mwaa" {
-  name               = var.mwaa_config.mwaa_name
-  execution_role_arn = aws_iam_role.mwaa_execution_role.arn
-  source_bucket_arn  = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
-  dag_s3_path        = var.mwaa_config.s3_dags_path
-  airflow_version    = "2.8.1"
-  plugins_s3_path     = local.plugins_s3_path
+  name                 = var.mwaa_config.mwaa_name
+  execution_role_arn   = aws_iam_role.mwaa_execution_role.arn
+  source_bucket_arn    = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
+  dag_s3_path          = var.mwaa_config.s3_dags_path
+  airflow_version      = "2.8.1"
+  plugins_s3_path      = local.plugins_s3_path
   requirements_s3_path = local.requirements_s3_path
 
   network_configuration {
@@ -190,32 +190,32 @@ resource "aws_mwaa_environment" "mwaa" {
     security_group_ids = [aws_security_group.mwaa_sg.id]
   }
 
- logging_configuration {
-  dag_processing_logs {
-    enabled   = true
-    log_level = "INFO"
-  }
+  logging_configuration {
+    dag_processing_logs {
+      enabled   = true
+      log_level = "INFO"
+    }
 
-  scheduler_logs {
-    enabled   = true
-    log_level = "INFO"
-  }
+    scheduler_logs {
+      enabled   = true
+      log_level = "INFO"
+    }
 
-  task_logs {
-    enabled   = true
-    log_level = "INFO"
-  }
+    task_logs {
+      enabled   = true
+      log_level = "INFO"
+    }
 
-  webserver_logs {
-    enabled   = true
-    log_level = "INFO"
-  }
+    webserver_logs {
+      enabled   = true
+      log_level = "INFO"
+    }
 
-  worker_logs {
-    enabled   = true
-    log_level = "INFO"
+    worker_logs {
+      enabled   = true
+      log_level = "INFO"
+    }
   }
-}
 
   airflow_configuration_options = {
     "core.lazy_load_plugins"       = "False"
