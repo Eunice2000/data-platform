@@ -54,10 +54,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256" # AWS-managed SSE-S3 encryption
+      sse_algorithm = "AES256"  # This will override existing KMS encryption
     }
   }
 
+  # Force override any existing encryption
   depends_on = [module.s3]
 }
 
