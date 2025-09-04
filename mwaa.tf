@@ -1,3 +1,7 @@
+locals {
+  plugins_s3_path      = var.mwaa_config.enable_plugins ? "plugins/" : null
+  requirements_s3_path = var.mwaa_config.enable_requirements ? "requirements/requirements.txt" : null
+}
 #########################
 # MWAA Execution Role
 #########################
@@ -178,6 +182,8 @@ resource "aws_mwaa_environment" "mwaa" {
   source_bucket_arn  = module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn
   dag_s3_path        = var.mwaa_config.s3_dags_path
   airflow_version    = "2.8.1"
+  plugins_s3_path     = local.plugins_s3_path
+  requirements_s3_path = local.requirements_s3_path
 
   network_configuration {
     subnet_ids         = slice(module.vpc.private_subnets, 0, 2)
@@ -219,19 +225,6 @@ resource "aws_mwaa_environment" "mwaa" {
     "scheduler.catchup_by_default" = "False"
   }
 
-  dynamic "plugins_s3_path" {
-    for_each = var.mwaa_config.enable_plugins ? [1] : []
-    content {
-      plugins_s3_path = "plugins/"
-    }
-  }
-
-  dynamic "requirements_s3_path" {
-    for_each = var.mwaa_config.enable_requirements ? [1] : []
-    content {
-      requirements_s3_path = "requirements/requirements.txt"
-    }
-  }
 
   tags = merge(var.tags, {
     Name = var.mwaa_config.mwaa_name
