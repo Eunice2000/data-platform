@@ -42,7 +42,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           "s3:DeleteObject*",
           "s3:ListBucket",
           "s3:GetBucketLocation",
-          "s3:GetBucketVersioning"
+          "s3:GetBucketVersioning",
           "s3:GetEncryptionConfiguration"
         ]
         Resource = [
