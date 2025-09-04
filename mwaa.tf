@@ -43,6 +43,7 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
           "s3:ListBucket",
           "s3:GetBucketLocation",
           "s3:GetBucketVersioning"
+          "s3:GetEncryptionConfiguration"
         ]
         Resource = [
           module.s3[var.mwaa_config.s3_bucket_key].s3_bucket_arn,

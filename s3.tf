@@ -44,6 +44,23 @@ locals {
   }
 }
 
+#########################
+# S3 Bucket Encryption Configuration
+#########################
+resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption" {
+  for_each = var.s3_config
+
+  bucket = module.s3[each.key].s3_bucket_id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"  # AWS-managed SSE-S3 encryption
+    }
+  }
+
+  depends_on = [module.s3]
+}
+
 output "s3_buckets" {
   value = local.s3_map
 }
