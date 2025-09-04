@@ -230,34 +230,17 @@ resource "aws_mwaa_environment" "mwaa" {
 }
 
 #########################
-# IAM Role for Airflow UI Access (Custom policy)
+# IAM User for Airflow UI Access
 #########################
-resource "aws_iam_role" "mwaa_ui_access" {
-  name = "${var.mwaa_config.mwaa_name}-ui-access-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-      }
-      Action = "sts:AssumeRole"
-      Condition = {
-        StringEquals = {
-          "aws:PrincipalType" = "User"
-        }
-      }
-    }]
-  })
-
-  tags = merge(var.tags, { Name = "${var.mwaa_config.mwaa_name}-ui-access-role" })
+resource "aws_iam_user" "mwaa_ui_user" {
+  name = "${var.mwaa_config.mwaa_name}-ui-user"
+  tags = merge(var.tags, { Name = "${var.mwaa_config.mwaa_name}-ui-user" })
 }
 
-# Custom policy for UI access
-resource "aws_iam_role_policy" "mwaa_ui_access" {
-  name = "${var.mwaa_config.mwaa_name}-ui-access-policy"
-  role = aws_iam_role.mwaa_ui_access.id
+# Attach inline policy for MWAA UI access
+resource "aws_iam_user_policy" "mwaa_ui_user_policy" {
+  name = "${var.mwaa_config.mwaa_name}-ui-user-policy"
+  user = aws_iam_user.mwaa_ui_user.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -273,4 +256,9 @@ resource "aws_iam_role_policy" "mwaa_ui_access" {
       }
     ]
   })
+}
+
+# (Optional) Access keys for programmatic use
+resource "aws_iam_access_key" "mwaa_ui_user_keys" {
+  user = aws_iam_user.mwaa_ui_user.name
 }
