@@ -53,31 +53,6 @@ resource "aws_iam_role_policy" "mwaa_s3_access" {
 }
 
 #########################
-# MWAA Security Group
-#########################
-resource "aws_security_group" "mwaa_sg" {
-  name        = "${var.mwaa_config.mwaa_name}-sg"
-  description = "Security group for MWAA environment"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    self      = true
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(var.tags, { Name = "${var.mwaa_config.mwaa_name}-sg" })
-}
-
-#########################
 # MWAA Environment
 #########################
 resource "aws_mwaa_environment" "mwaa" {
@@ -91,7 +66,7 @@ resource "aws_mwaa_environment" "mwaa" {
 
   network_configuration {
     subnet_ids         = slice(module.vpc.private_subnets, 0, 2)
-    security_group_ids = [aws_security_group.mwaa_sg.id]
+    security_group_ids = [module.vpc.default_security_group_id] 
   }
 
   airflow_configuration_options = {
