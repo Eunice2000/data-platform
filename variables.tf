@@ -52,5 +52,13 @@ variable "tags" {
   description = "Tags to apply to resources"
 }
 
-variable "aws_region" {}
-variable "aws_account" {}
+variable "region" {
+  type        = string
+  default     = "us-east-1"
+  description = "AWS region"
+}
+
+variable "account_id" {
+  type        = string
+  description = "AWS account ID"
+}
