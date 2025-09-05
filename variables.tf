@@ -45,6 +45,7 @@ variable "mwaa_config" {
     }))
     enable_plugins      = optional(bool, false)
     enable_requirements = optional(bool, false)
+    airflow_version     = optional(string, "2.8.1")
   })
 }
 
