@@ -43,8 +43,8 @@ resource "aws_iam_role_policy" "mwaa_s3_access" {
       [
         # Access to each bucket
         for access in [each.value] : {
-          Effect   = "Allow"
-          Action   = access.actions
+          Effect = "Allow"
+          Action = access.actions
           Resource = [
             module.s3[access.bucket_key].s3_bucket_arn,
             "${module.s3[access.bucket_key].s3_bucket_arn}/*"
@@ -55,7 +55,8 @@ resource "aws_iam_role_policy" "mwaa_s3_access" {
         # Allow MWAA to check public access block
         {
           Effect = "Allow"
-          Action = ["s3:GetAccountPublicAccessBlock"]
+          Action = ["s3:GetAccountPublicAccessBlock",
+          "s3:GetBucketPublicAccessBlock"]
           Resource = "*"
         }
       ]
@@ -110,8 +111,8 @@ resource "aws_iam_user_policy" "mwaa_ui_user_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "airflow:GetEnvironment",
           "airflow:ListEnvironments",
           "airflow:CreateWebLoginToken"
