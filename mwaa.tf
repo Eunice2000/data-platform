@@ -90,7 +90,7 @@ resource "aws_iam_role_policy" "mwaa_execution_role_policy" {
             "sqs:DeleteMessage",
             "sqs:ChangeMessageVisibility"
           ]
-          Resource = "arn:aws:sqs:${var.region}:${data.aws_caller_identity.current.account_id}:airflow-celery-*"
+          Resource = "arn:aws:sqs:${var.region}:${var.account_id}:airflow-celery-*"
         },
         # KMS for environment & S3 encryption
         {
@@ -107,7 +107,7 @@ resource "aws_iam_role_policy" "mwaa_execution_role_policy" {
         {
           Effect = "Allow"
           Action = ["airflow:PublishMetrics"]
-          Resource = "arn:aws:airflow:${var.region}:${data.aws_caller_identity.current.account_id}:environment/${var.mwaa_config.mwaa_name}"
+          Resource = "arn:aws:airflow:${var.region}:${var.account_id}:environment/${var.mwaa_config.mwaa_name}"
         }
       ]
     )
