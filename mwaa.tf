@@ -90,9 +90,10 @@ resource "aws_mwaa_environment" "mwaa" {
   }
 
   tags = merge(var.tags, { Name = var.mwaa_config.mwaa_name })
-
-  # Avoid creation issues if S3 bucket does not exist yet
-  depends_on = [aws_iam_role_policy.mwaa_s3_access]
+  depends_on = [
+    aws_s3_bucket_server_side_encryption_configuration.bucket_encryption,
+    aws_iam_role_policy.mwaa_s3_access
+  ]
 }
 
 #########################
