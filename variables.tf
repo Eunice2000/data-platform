@@ -52,13 +52,3 @@ variable "mwaa_config" {
 variable "tags" {
   description = "Tags to apply to resources"
 }
-
-variable "region" {
-  type        = string
-  description = "AWS region"
-}
-
-variable "account_id" {
-  type        = string
-  description = "AWS account ID"
-}
