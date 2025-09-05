@@ -30,103 +30,116 @@ resource "aws_iam_role" "mwaa_execution_role" {
 }
 
 #########################
-# MWAA Execution Role Policy (Dynamic S3 Access)
+# MWAA Execution Role Policy (Dynamic S3 Access per Bucket)
 #########################
-resource "aws_iam_role_policy" "mwaa_execution_policy" {
-  name = "${var.mwaa_config.mwaa_name}-execution-policy"
+resource "aws_iam_role_policy" "mwaa_s3_access" {
+  for_each = {
+    for idx, access in var.mwaa_config.s3_access :
+    idx => access
+  }
+
   role = aws_iam_role.mwaa_execution_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = concat(
-      [
-        # Dynamic S3 permissions
-        for access in var.mwaa_config.s3_access : {
-          Effect   = "Allow"
-          Action   = access.actions
-          Resource = [
-            module.s3[access.bucket_key].s3_bucket_arn,
-            "${module.s3[access.bucket_key].s3_bucket_arn}/*"
-          ]
-        }
-      ],
-      [
-        # S3 public access block check
-        {
-          Effect = "Allow"
-          Action = [
-            "s3:GetAccountPublicAccessBlock",
-            "s3:GetBucketPublicAccessBlock"
-          ]
-          Resource = "*"
-        },
-        # KMS permissions (AWS-managed)
-        {
-          Effect = "Allow"
-          Action = [
-            "kms:Decrypt",
-            "kms:GenerateDataKey",
-            "kms:DescribeKey"
-          ]
-          Resource = "*"
-          Condition = {
-            StringLike = {
-              "kms:ViaService" = [
-                "sqs.${var.region}.amazonaws.com",
-                "s3.${var.region}.amazonaws.com"
-              ]
-            }
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = each.value.actions
+        Resource = [
+          module.s3[each.value.bucket_key].s3_bucket_arn,
+          "${module.s3[each.value.bucket_key].s3_bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+#########################
+# Additional Permissions (CloudWatch, EC2, SQS, KMS)
+#########################
+resource "aws_iam_role_policy" "mwaa_execution_additional" {
+  name = "${var.mwaa_config.mwaa_name}-execution-additional"
+  role = aws_iam_role.mwaa_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # S3 public access block check
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetAccountPublicAccessBlock",
+          "s3:GetBucketPublicAccessBlock"
+        ]
+        Resource = "*"
+      },
+      # AWS-managed KMS permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = [
+              "sqs.${var.region}.amazonaws.com",
+              "s3.${var.region}.amazonaws.com"
+            ]
           }
-        },
-        # CloudWatch permissions
-        {
-          Effect = "Allow"
-          Action = [
-            "logs:CreateLogGroup",
-            "logs:CreateLogStream",
-            "logs:PutLogEvents",
-            "logs:GetLogEvents",
-            "logs:GetLogRecord"
-          ]
-          Resource = "arn:aws:logs:*:*:log-group:airflow-${var.mwaa_config.mwaa_name}-*"
-        },
-        {
-          Effect   = "Allow"
-          Action   = "cloudwatch:PutMetricData"
-          Resource = "*"
-        },
-        # EC2 read-only permissions
-        {
-          Effect = "Allow"
-          Action = [
-            "ec2:DescribeNetworkInterfaces",
-            "ec2:DescribeVpcs",
-            "ec2:DescribeSubnets",
-            "ec2:DescribeSecurityGroups"
-          ]
-          Resource = "*"
-        },
-        # SQS permissions
-        {
-          Effect = "Allow"
-          Action = [
-            "sqs:ChangeMessageVisibility",
-            "sqs:DeleteMessage",
-            "sqs:GetQueueAttributes",
-            "sqs:GetQueueUrl",
-            "sqs:ReceiveMessage",
-            "sqs:SendMessage"
-          ]
-          Resource = "arn:aws:sqs:${var.region}:*:airflow-celery-*"
-        },
-        # Airflow metrics
-        {
-          Effect = "Allow"
-          Action = ["airflow:PublishMetrics"]
-          Resource = "arn:aws:airflow:${var.region}:${var.account_id}:environment/${var.mwaa_config.mwaa_name}"
         }
-      ]
-    )
+      },
+      # CloudWatch permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:GetLogRecord"
+        ]
+        Resource = "arn:aws:logs:*:*:log-group:airflow-${var.mwaa_config.mwaa_name}-*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "cloudwatch:PutMetricData"
+        Resource = "*"
+      },
+      # EC2 read-only permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups"
+        ]
+        Resource = "*"
+      },
+      # SQS permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ChangeMessageVisibility",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ReceiveMessage",
+          "sqs:SendMessage"
+        ]
+        Resource = "arn:aws:sqs:${var.region}:*:airflow-celery-*"
+      },
+      # Airflow metrics
+      {
+        Effect = "Allow"
+        Action   = ["airflow:PublishMetrics"]
+        Resource = "arn:aws:airflow:${var.region}:${var.account_id}:environment/${var.mwaa_config.mwaa_name}"
+      }
+    ]
   })
 }
 
