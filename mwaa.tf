@@ -30,7 +30,7 @@ resource "aws_iam_role" "mwaa_execution_role" {
 }
 
 #########################
-# MWAA Execution Role Policy (S3 Access per Bucket)
+# MWAA Execution Role Policy (S3 + Public Access Block)
 #########################
 resource "aws_iam_role_policy" "mwaa_s3_access" {
   for_each = { for idx, access in var.mwaa_config.s3_access : idx => access }
@@ -39,16 +39,27 @@ resource "aws_iam_role_policy" "mwaa_s3_access" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = each.value.actions
-        Resource = [
-          module.s3[each.value.bucket_key].s3_bucket_arn,
-          "${module.s3[each.value.bucket_key].s3_bucket_arn}/*"
-        ]
-      }
-    ]
+    Statement = concat(
+      [
+        # Access to each bucket
+        for access in [each.value] : {
+          Effect   = "Allow"
+          Action   = access.actions
+          Resource = [
+            module.s3[access.bucket_key].s3_bucket_arn,
+            "${module.s3[access.bucket_key].s3_bucket_arn}/*"
+          ]
+        }
+      ],
+      [
+        # Allow MWAA to check public access block
+        {
+          Effect = "Allow"
+          Action = ["s3:GetAccountPublicAccessBlock"]
+          Resource = "*"
+        }
+      ]
+    )
   })
 }
 
@@ -66,7 +77,7 @@ resource "aws_mwaa_environment" "mwaa" {
 
   network_configuration {
     subnet_ids         = slice(module.vpc.private_subnets, 0, 2)
-    security_group_ids = [module.vpc.default_security_group_id] 
+    security_group_ids = [module.vpc.default_security_group_id]
   }
 
   airflow_configuration_options = {
@@ -78,6 +89,9 @@ resource "aws_mwaa_environment" "mwaa" {
   }
 
   tags = merge(var.tags, { Name = var.mwaa_config.mwaa_name })
+
+  # Avoid creation issues if S3 bucket does not exist yet
+  depends_on = [aws_iam_role_policy.mwaa_s3_access]
 }
 
 #########################
