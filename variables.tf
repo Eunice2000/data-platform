@@ -77,7 +77,7 @@ variable "mwaa_config" {
 
     # New optional attributes
     airflow_configuration_options = optional(map(string), {}) # for Airflow config
-    kms_key                       = optional(string, null)   # for KMS usage
+  
   })
 }
 
