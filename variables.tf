@@ -1,3 +1,6 @@
+#########################
+# VPC Configuration
+#########################
 variable "vpc_config" {
   description = "VPC configurations"
   type = object({
@@ -16,8 +19,11 @@ variable "vpc_config" {
   })
 }
 
+#########################
+# S3 Configuration
+#########################
 variable "s3_config" {
-  description = "s3 configurations"
+  description = "S3 bucket configurations"
   type = map(object({
     bucket_name      = string
     force_destroy    = bool
@@ -33,32 +39,54 @@ variable "s3_config" {
   }))
 }
 
+#########################
+# MWAA Configuration
+#########################
 variable "mwaa_config" {
-  description = "mwaa configurations"
+  description = "MWAA configurations including IAM role settings, logging, plugins, security groups, and KMS"
   type = object({
+    # MWAA basic settings
     mwaa_name     = string
     s3_dags_path  = string
     s3_bucket_key = string
-    s3_access = list(object({
+    s3_access     = list(object({
       bucket_key = string
       actions    = list(string)
     }))
     enable_plugins      = optional(bool, false)
     enable_requirements = optional(bool, false)
     airflow_version     = optional(string, "2.8.1")
+
+    # IAM role settings
+    create_iam_role            = optional(bool, false)
+    iam_role_name              = optional(string, null)
+    additional_principal_arns  = optional(list(string), [])
+    iam_role_permissions_boundary = optional(string, null)
+    force_detach_policies      = optional(bool, false)
+    iam_role_additional_policies = optional(map(string), {})
+    iam_role_path              = optional(string, "/")
+    execution_role_arn         = optional(string, null)
+
+    # Logging configuration
+    logging_configuration = optional(any, null)
+
+    # Security groups
+    create_security_group = optional(bool, false)
+    security_group_ids    = optional(list(string), [])
+    source_cidr           = optional(list(string), []) # For Airflow UI access if SG created
+
+    # New optional attributes
+    airflow_configuration_options = optional(map(string), {}) # for Airflow config
+    kms_key                       = optional(string, null)   # for KMS usage
   })
 }
 
+
+#########################
+# Tags
+#########################
 variable "tags" {
   description = "Tags to apply to resources"
-}
-
-variable "region" {
-  type        = string
-  description = "AWS region"
-}
-
-variable "account_id" {
-  type        = string
-  description = "AWS account ID"
+  type        = map(string)
+  default     = {}
 }

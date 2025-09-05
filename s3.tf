@@ -54,8 +54,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"  # Enforce AES256 encryption only
-      
+      sse_algorithm = "AES256" # Enforce AES256 encryption only
+
     }
   }
 
