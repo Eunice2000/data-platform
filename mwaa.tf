@@ -30,11 +30,10 @@ resource "aws_iam_role" "mwaa_execution_role" {
 }
 
 #########################
-# MWAA Execution Role Policy (S3 + Public Access Block)
+# MWAA Execution Role Policy (Full Permissions)
 #########################
-resource "aws_iam_role_policy" "mwaa_s3_access" {
-  for_each = { for idx, access in var.mwaa_config.s3_access : idx => access }
-
+resource "aws_iam_role_policy" "mwaa_execution_role_policy" {
+  name = "${var.mwaa_config.mwaa_name}-execution-role-policy"
   role = aws_iam_role.mwaa_execution_role.id
 
   policy = jsonencode({
@@ -42,7 +41,7 @@ resource "aws_iam_role_policy" "mwaa_s3_access" {
     Statement = concat(
       [
         # Access to each bucket
-        for access in [each.value] : {
+        for access in var.mwaa_config.s3_access : {
           Effect = "Allow"
           Action = access.actions
           Resource = [
@@ -52,12 +51,63 @@ resource "aws_iam_role_policy" "mwaa_s3_access" {
         }
       ],
       [
-        # Allow MWAA to check public access block
+        # S3 Public Access Block
         {
           Effect = "Allow"
-          Action = ["s3:GetAccountPublicAccessBlock",
-          "s3:GetBucketPublicAccessBlock"]
+          Action = [
+            "s3:GetAccountPublicAccessBlock",
+            "s3:GetBucketPublicAccessBlock"
+          ]
           Resource = "*"
+        },
+        # CloudWatch Logs
+        {
+          Effect = "Allow"
+          Action = [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "logs:GetLogEvents",
+            "logs:GetLogGroupFields",
+            "logs:DescribeLogGroups"
+          ]
+          Resource = "*"
+        },
+        # CloudWatch Metrics
+        {
+          Effect = "Allow"
+          Action = ["cloudwatch:PutMetricData"]
+          Resource = "*"
+        },
+        # SQS for Celery queues
+        {
+          Effect = "Allow"
+          Action = [
+            "sqs:SendMessage",
+            "sqs:ReceiveMessage",
+            "sqs:GetQueueUrl",
+            "sqs:GetQueueAttributes",
+            "sqs:DeleteMessage",
+            "sqs:ChangeMessageVisibility"
+          ]
+          Resource = "arn:aws:sqs:${var.region}:${data.aws_caller_identity.current.account_id}:airflow-celery-*"
+        },
+        # KMS for environment & S3 encryption
+        {
+          Effect = "Allow"
+          Action = [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ]
+          Resource = "*"
+        },
+        # MWAA Metrics
+        {
+          Effect = "Allow"
+          Action = ["airflow:PublishMetrics"]
+          Resource = "arn:aws:airflow:${var.region}:${data.aws_caller_identity.current.account_id}:environment/${var.mwaa_config.mwaa_name}"
         }
       ]
     )
@@ -90,9 +140,10 @@ resource "aws_mwaa_environment" "mwaa" {
   }
 
   tags = merge(var.tags, { Name = var.mwaa_config.mwaa_name })
+
   depends_on = [
     aws_s3_bucket_server_side_encryption_configuration.bucket_encryption,
-    aws_iam_role_policy.mwaa_s3_access
+    aws_iam_role_policy.mwaa_execution_role_policy
   ]
 }
 
