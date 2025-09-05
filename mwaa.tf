@@ -72,8 +72,8 @@ resource "aws_iam_role_policy" "mwaa_execution_policy" {
         Condition = {
           StringLike = {
             "kms:ViaService" = [
-              "sqs.${var.region}.amazonaws.com",
-              "s3.${var.region}.amazonaws.com"
+              "sqs.${data.aws_region.current.name}.amazonaws.com",
+              "s3.${data.aws_region.current.name}.amazonaws.com"
             ]
           }
         }
