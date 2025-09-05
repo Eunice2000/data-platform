@@ -80,7 +80,7 @@ resource "aws_mwaa_environment" "mwaa" {
   plugins_s3_path               = local.plugins_s3_path
   requirements_s3_path          = local.requirements_s3_path
   airflow_configuration_options = local.airflow_configuration_options
-
+  webserver_access_mode = "PUBLIC_ONLY"
   network_configuration {
     subnet_ids         = slice(module.vpc.private_subnets, 0, 2)
     security_group_ids = local.security_group_ids
