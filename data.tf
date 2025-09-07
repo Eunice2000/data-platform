@@ -151,7 +151,7 @@ data "aws_iam_policy_document" "mwaa" {
 
 
 
-#############################################
+##############################################
 # Fetch the existing MSK cluster
 #############################################
 data "aws_msk_cluster" "selected" {
@@ -159,10 +159,17 @@ data "aws_msk_cluster" "selected" {
 }
 
 #############################################
+# Fetch bootstrap brokers for the MSK cluster
+#############################################
+data "aws_msk_bootstrap_brokers" "selected" {
+  cluster_arn = data.aws_msk_cluster.selected.arn
+}
+
+#############################################
 # Fetch the MSK SCRAM secret from Secrets Manager
 #############################################
 data "aws_secretsmanager_secret" "msk_connect_secret" {
-  name = "AmazonMSK_microservice-cluster-new"  # update to actual secret name
+  name = "AmazonMSK_microservice-cluster-new" # adjust to your actual secret name
 }
 
 data "aws_secretsmanager_secret_version" "msk_connect_secret" {
@@ -170,19 +177,13 @@ data "aws_secretsmanager_secret_version" "msk_connect_secret" {
 }
 
 #############################################
-# IAM Policy JSON for MSK Connect execution role
+# Policy JSON for MSK Connect execution role
 #############################################
 data "aws_iam_policy_document" "connect_execution" {
-  #############################################
-  # MSK permissions (cluster, topic, group)
-  #############################################
   statement {
     sid     = "AllowMSKCluster"
     effect  = "Allow"
-    actions = [
-      "kafka-cluster:Connect",
-      "kafka-cluster:DescribeCluster"
-    ]
+    actions = ["kafka-cluster:Connect", "kafka-cluster:DescribeCluster"]
     resources = [
       "arn:aws:kafka:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:cluster/*"
     ]
@@ -191,12 +192,7 @@ data "aws_iam_policy_document" "connect_execution" {
   statement {
     sid     = "AllowTopicAccess"
     effect  = "Allow"
-    actions = [
-      "kafka-cluster:CreateTopic",
-      "kafka-cluster:WriteData",
-      "kafka-cluster:ReadData",
-      "kafka-cluster:DescribeTopic"
-    ]
+    actions = ["kafka-cluster:CreateTopic", "kafka-cluster:WriteData", "kafka-cluster:ReadData", "kafka-cluster:DescribeTopic"]
     resources = [
       "arn:aws:kafka:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:topic/*"
     ]
@@ -205,32 +201,20 @@ data "aws_iam_policy_document" "connect_execution" {
   statement {
     sid     = "AllowGroupAccess"
     effect  = "Allow"
-    actions = [
-      "kafka-cluster:AlterGroup",
-      "kafka-cluster:DescribeGroup"
-    ]
+    actions = ["kafka-cluster:AlterGroup", "kafka-cluster:DescribeGroup"]
     resources = [
       "arn:aws:kafka:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:group/*"
     ]
   }
 
-  #############################################
-  # CloudWatch logs for connector workers
-  #############################################
   statement {
     sid     = "AllowCloudWatchLogs"
     effect  = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
+    actions = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
     resources = ["*"]
   }
 
-  #############################################
-  # Dynamic S3 access (plugins + sink buckets)
-  #############################################
+  # Dynamic statements for S3 access
   dynamic "statement" {
     for_each = var.connect_config.s3_access
     content {
