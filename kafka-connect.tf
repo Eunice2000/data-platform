@@ -115,7 +115,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "NONE" # MSK Connect will use SCRAM via secret association
+    authentication_type = "NONE" # SCRAM handled via secret association
   }
 
   kafka_cluster_encryption_in_transit {

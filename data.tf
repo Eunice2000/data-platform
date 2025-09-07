@@ -161,12 +161,13 @@ data "aws_msk_cluster" "selected" {
 # Fetch the MSK SCRAM secret from Secrets Manager
 #############################################
 data "aws_secretsmanager_secret" "msk_connect_secret" {
-  name = "AmazonMSK-${var.connect_config.kafka_cluster_name}-new"
+  name = "AmazonMSK_microservice-cluster-new"  # match the actual secret
 }
 
 data "aws_secretsmanager_secret_version" "msk_connect_secret" {
   secret_id = data.aws_secretsmanager_secret.msk_connect_secret.id
 }
+
 #############################################
 # Policy JSON for MSK Connect execution role
 #############################################
