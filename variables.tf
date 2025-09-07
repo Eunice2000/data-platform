@@ -49,7 +49,7 @@ variable "mwaa_config" {
     mwaa_name     = string
     s3_dags_path  = string
     s3_bucket_key = string
-    s3_access = list(object({
+    s3_access     = list(object({
       bucket_key = string
       actions    = list(string)
     }))
@@ -58,14 +58,14 @@ variable "mwaa_config" {
     airflow_version     = optional(string, "2.8.1")
 
     # IAM role settings
-    create_iam_role               = optional(bool, false)
-    iam_role_name                 = optional(string, null)
-    additional_principal_arns     = optional(list(string), [])
+    create_iam_role            = optional(bool, false)
+    iam_role_name              = optional(string, null)
+    additional_principal_arns  = optional(list(string), [])
     iam_role_permissions_boundary = optional(string, null)
-    force_detach_policies         = optional(bool, false)
-    iam_role_additional_policies  = optional(map(string), {})
-    iam_role_path                 = optional(string, "/")
-    execution_role_arn            = optional(string, null)
+    force_detach_policies      = optional(bool, false)
+    iam_role_additional_policies = optional(map(string), {})
+    iam_role_path              = optional(string, "/")
+    execution_role_arn         = optional(string, null)
 
     # Logging configuration
     logging_configuration = optional(any, null)
@@ -77,7 +77,7 @@ variable "mwaa_config" {
 
     # New optional attributes
     airflow_configuration_options = optional(map(string), {}) # for Airflow config
-
+  
   })
 }
 
@@ -89,47 +89,4 @@ variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
   default     = {}
-}
-
-
-#########################
-# MSK Connect Plugins Configuration
-#########################
-variable "msk_connect_plugins" {
-  description = "All MSK Connect configuration including cluster, networking, S3, connector, and worker settings"
-  type = object({
-    # MSK Cluster Info
-    msk_cluster_name        = string
-    kafkaconnect_version    = string
-
-    # Networking
-    vpc_name                = string
-    msk_subnet_names        = list(string)
-    msk_security_group_names = list(string)
-
-    # S3 Bucket for plugins & connectors
-    bucket_name             = string
-    bucket_name_key         = string
-    force_destroy           = bool
-    enable_lifecycle        = bool
-    lifecycle_config        = map(any)
-    folders                 = list(string)
-
-    # Connector Definition
-    connector_name          = string
-    connector_class         = string
-    connector_type          = string
-    connector_config        = map(string)
-
-    # Connector Runtime
-    connector_worker_count  = number
-    connector_worker_mcu    = number
-    connector_tasks_max     = string
-    connector_topics        = string
-    s3_region               = string
-    flush_size              = string
-    format_class            = string
-    key_converter           = string
-    value_converter         = string
-  })
 }
