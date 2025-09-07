@@ -146,13 +146,16 @@ data "aws_iam_policy_document" "mwaa" {
     ]
   }
 }
-
+#############################################
 # Existing MSK cluster (already provisioned)
+#############################################
 data "aws_msk_cluster" "selected" {
   cluster_name = var.connect_config.kafka_cluster_name
 }
 
+#############################################
 # Policy JSON for MSK Connect execution role
+#############################################
 data "aws_iam_policy_document" "connect_execution" {
   statement {
     sid     = "AllowMSKCluster"
@@ -188,10 +191,11 @@ data "aws_iam_policy_document" "connect_execution" {
     resources = ["*"]
   }
 
+  # Dynamic statements for S3 access
   dynamic "statement" {
     for_each = var.connect_config.s3_access
     content {
-      sid     = "AllowS3Access-${statement.value.bucket_key}"
+      sid     = "AllowS3Access${replace(statement.value.bucket_key, "/[^0-9A-Za-z]/", "")}" # sanitized alphanumeric only
       effect  = "Allow"
       actions = statement.value.actions
       resources = [

@@ -28,17 +28,26 @@ resource "aws_iam_role_policy_attachment" "connect_execution_attach" {
 }
 
 #############################################
-# Custom Plugin (Optional)
+# CloudWatch Log Group for MSK Connect
+#############################################
+resource "aws_cloudwatch_log_group" "mskconnect" {
+  name              = "/aws/mskconnect/${var.connect_config.name}"
+  retention_in_days = 14
+  tags              = var.tags
+}
+
+#############################################
+# Custom Plugins (loop over all provided)
 #############################################
 resource "aws_mskconnect_custom_plugin" "s3_plugin" {
-  count        = var.connect_config.enable_plugins ? 1 : 0
-  name         = "${var.connect_config.name}-plugin"
+  for_each     = { for p in var.connect_config.connect_plugins : p.name => p }
+  name         = "${var.connect_config.name}-${each.key}"
   content_type = "ZIP"
 
   location {
     s3 {
-      bucket_arn = "arn:aws:s3:::${var.s3_config[var.connect_config.s3_bucket_key].bucket_name}"
-      file_key   = "plugins/connector.zip"
+      bucket_arn = "arn:aws:s3:::${var.s3_config[each.value.bucket_key].bucket_name}"
+      file_key   = each.value.file_key
     }
   }
 
@@ -75,8 +84,10 @@ locals {
 # MSK Connect Connector
 #############################################
 resource "aws_mskconnect_connector" "this" {
+  depends_on = [aws_cloudwatch_log_group.mskconnect]
+
   name                 = var.connect_config.name
-  kafkaconnect_version = var.connect_config.kafka_version
+  kafkaconnect_version = var.connect_config.kafkaconnect_version
 
   capacity {
     provisioned_capacity {
@@ -109,17 +120,17 @@ resource "aws_mskconnect_connector" "this" {
     worker_log_delivery {
       cloudwatch_logs {
         enabled   = true
-        log_group = "/aws/mskconnect/${var.connect_config.name}"
+        log_group = aws_cloudwatch_log_group.mskconnect.name
       }
     }
   }
 
   dynamic "plugin" {
-    for_each = var.connect_config.enable_plugins ? [1] : []
+    for_each = aws_mskconnect_custom_plugin.s3_plugin
     content {
       custom_plugin {
-        arn      = aws_mskconnect_custom_plugin.s3_plugin[0].arn
-        revision = aws_mskconnect_custom_plugin.s3_plugin[0].latest_revision
+        arn      = plugin.value.arn
+        revision = plugin.value.latest_revision
       }
     }
   }

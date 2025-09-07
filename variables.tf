@@ -86,12 +86,11 @@ variable "connect_config" {
   type = object({
     name               = string
     kafka_cluster_name = string
-    kafka_version      = string
+    kafkaconnect_version      = string
     s3_bucket_key      = string
-    enable_plugins     = optional(bool, false)
     create_iam_role    = optional(bool, true)
-    security_groups = list(string)
-    subnet_ids      = list(string)
+    security_groups    = list(string)
+    subnet_ids         = list(string)
 
     scaling = object({
       mcu_count    = number
@@ -109,9 +108,14 @@ variable "connect_config" {
       bucket_key = string
       actions    = list(string)
     }))
+
+    connect_plugins = optional(list(object({
+      name       = string
+      file_key   = string
+      bucket_key = string
+    })), [])
   })
 }
-
 
 
 
