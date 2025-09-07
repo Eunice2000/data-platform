@@ -63,7 +63,7 @@ resource "aws_mskconnect_custom_plugin" "s3_plugin" {
 #############################################
 resource "aws_msk_scram_secret_association" "this" {
   cluster_arn     = data.aws_msk_cluster.selected.arn
-  secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.secret_id]
+  secret_arn_list = [data.aws_secretsmanager_secret.msk_connect_secret.arn]
 }
 
 #############################################

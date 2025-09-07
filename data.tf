@@ -152,8 +152,8 @@ data "aws_iam_policy_document" "mwaa" {
 data "aws_msk_cluster" "selected" {
   cluster_name = var.connect_config.kafka_cluster_name
 }
-data "aws_secretsmanager_secret_version" "msk_connect_secret" {
-  secret_id = "AmazonMSK_${var.connect_config.kafka_cluster_name}-new"
+data "aws_secretsmanager_secret" "msk_connect_secret" {
+  name = "AmazonMSK-${var.connect_config.kafka_cluster_name}-new"
 }
 #############################################
 # Policy JSON for MSK Connect execution role
