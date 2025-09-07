@@ -1,17 +1,21 @@
+
 #############################################
 # IAM Role + Policy (if enabled)
 #############################################
 resource "aws_iam_role" "connect_execution" {
-  count              = var.connect_config.create_iam_role ? 1 : 0
-  name               = "${var.connect_config.name}-execution-role"
+  count = var.connect_config.create_iam_role ? 1 : 0
+
+  name = "${var.connect_config.name}-execution-role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Service = "kafkaconnect.amazonaws.com" }
       Action    = "sts:AssumeRole"
     }]
   })
+
   tags = var.tags
 }
 
@@ -52,6 +56,14 @@ resource "aws_mskconnect_custom_plugin" "s3_plugin" {
   }
 
   tags = var.tags
+}
+
+#############################################
+# SCRAM Secret Association
+#############################################
+resource "aws_msk_scram_secret_association" "this" {
+  cluster_arn     = data.aws_msk_cluster.selected.arn
+  secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.arn]
 }
 
 #############################################
@@ -100,7 +112,7 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      bootstrap_servers = data.aws_msk_cluster.selected.bootstrap_brokers_tls
+      bootstrap_servers = data.aws_msk_cluster.selected.bootstrap_brokers_sasl_scram
       vpc {
         security_groups = var.connect_config.security_groups
         subnets         = var.connect_config.subnet_ids
@@ -109,7 +121,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "NONE"
+    authentication_type = "IAM"
   }
 
   kafka_cluster_encryption_in_transit {
