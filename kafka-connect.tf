@@ -58,13 +58,6 @@ resource "aws_mskconnect_custom_plugin" "s3_plugin" {
   tags = var.tags
 }
 
-#############################################
-# SCRAM Secret Association
-#############################################
-resource "aws_msk_scram_secret_association" "this" {
-  cluster_arn     = data.aws_msk_cluster.selected.arn
-  secret_arn_list = [data.aws_secretsmanager_secret.msk_connect_secret.arn]
-}
 
 #############################################
 # Connector Configuration
