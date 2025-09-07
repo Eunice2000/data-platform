@@ -1,4 +1,3 @@
-
 #############################################
 # IAM Role + Policy (if enabled)
 #############################################
@@ -58,7 +57,6 @@ resource "aws_mskconnect_custom_plugin" "s3_plugin" {
   tags = var.tags
 }
 
-
 #############################################
 # Connector Configuration
 #############################################
@@ -105,7 +103,10 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      bootstrap_servers = data.aws_msk_cluster.selected.bootstrap_brokers_sasl_iam
+      bootstrap_servers = join(",", [
+        "b-1.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9094",
+        "b-2.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9094"
+      ])
       vpc {
         security_groups = var.connect_config.security_groups
         subnets         = var.connect_config.subnet_ids
@@ -114,7 +115,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "IAM"
+    authentication_type = "NONE" # MSK Connect will use SCRAM via secret association
   }
 
   kafka_cluster_encryption_in_transit {
@@ -142,4 +143,16 @@ resource "aws_mskconnect_connector" "this" {
 
   service_execution_role_arn = var.connect_config.create_iam_role ? aws_iam_role.connect_execution[0].arn : null
   tags                       = var.tags
+}
+
+#############################################
+# Associate SCRAM secret with MSK cluster
+#############################################
+resource "aws_msk_scram_secret_association" "this" {
+  cluster_arn     = data.aws_msk_cluster.selected.arn
+  secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.arn]
+
+  depends_on = [
+    aws_mskconnect_connector.this
+  ]
 }

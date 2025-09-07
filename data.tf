@@ -146,17 +146,25 @@ data "aws_iam_policy_document" "mwaa" {
     ]
   }
 }
+############################################################
+# Data sources for existing MSK cluster and SCRAM secret
+###########################################################
+
 #############################################
-# Existing MSK cluster (already provisioned)
+# Fetch the existing MSK cluster
 #############################################
 data "aws_msk_cluster" "selected" {
   cluster_name = var.connect_config.kafka_cluster_name
 }
+
+#############################################
+# Fetch the MSK SCRAM secret from Secrets Manager
+#############################################
 data "aws_secretsmanager_secret" "msk_connect_secret" {
-  name = "AmazonMSK_microservice-cluster-new"
+  name = "AmazonMSK-${var.connect_config.kafka_cluster_name}-new"
 }
 
-data "aws_secretsmanager_secret_version" "msk_connect_secret_version" {
+data "aws_secretsmanager_secret_version" "msk_connect_secret" {
   secret_id = data.aws_secretsmanager_secret.msk_connect_secret.id
 }
 #############################################
