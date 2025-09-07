@@ -7,10 +7,10 @@ resource "aws_iam_role" "connect_execution" {
   name = "${var.connect_config.name}-execution-role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "kafkaconnect.amazonaws.com" }
+      Effect    = "Allow",
+      Principal = { Service = "kafkaconnect.amazonaws.com" },
       Action    = "sts:AssumeRole"
     }]
   })
@@ -31,7 +31,7 @@ resource "aws_iam_role_policy_attachment" "connect_execution_attach" {
 }
 
 #############################################
-# CloudWatch Log Group for MSK Connect
+# CloudWatch Log Group
 #############################################
 resource "aws_cloudwatch_log_group" "mskconnect" {
   name              = "/aws/mskconnect/${var.connect_config.name}"
@@ -40,7 +40,7 @@ resource "aws_cloudwatch_log_group" "mskconnect" {
 }
 
 #############################################
-# Custom Plugins (loop over all provided)
+# Custom Plugins
 #############################################
 resource "aws_mskconnect_custom_plugin" "s3_plugin" {
   for_each     = { for p in var.connect_config.connect_plugins : p.name => p }
@@ -62,24 +62,21 @@ resource "aws_mskconnect_custom_plugin" "s3_plugin" {
 #############################################
 locals {
   connector_configuration = {
-    "connector.class"           = "io.confluent.connect.s3.S3SinkConnector"
-    "s3.region"                 = data.aws_region.current.id
-    "flush.size"                = "1"
-    "schema.compatibility"      = "NONE"
-    "tasks.max"                 = "1"
-    "topics"                    = var.connect_config.topic_config.topic_name
-    "timezone"                  = "UTC"
-    "rotate.interval.ms"        = "600000"
-    "format.class"              = "io.confluent.connect.s3.format.json.JsonFormat"
-    "partitioner.class"         = "io.confluent.connect.storage.partitioner.DefaultPartitioner"
-    "storage.class"             = "io.confluent.connect.s3.storage.S3Storage"
-    "s3.bucket.name"            = var.s3_config[var.connect_config.s3_bucket_key].bucket_name
-    "path.format"               = "year=!{timestamp:YYYY}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}"
-    "key.converter"             = "org.apache.kafka.connect.storage.StringConverter"
-    "value.converter"           = "org.apache.kafka.connect.storage.StringConverter"
-    "offset.storage.partitions" = "1"
-    "status.storage.partitions" = "1"
-    "config.storage.partitions" = "1"
+    "connector.class"      = "io.confluent.connect.s3.S3SinkConnector"
+    "tasks.max"            = "1"
+    "topics"               = var.connect_config.topic_config.topic_name
+    "s3.region"            = data.aws_region.current.id
+    "s3.bucket.name"       = var.s3_config[var.connect_config.s3_bucket_key].bucket_name
+    "storage.class"        = "io.confluent.connect.s3.storage.S3Storage"
+    "format.class"         = "io.confluent.connect.s3.format.json.JsonFormat"
+    "flush.size"           = "1"
+    "rotate.interval.ms"   = "600000"
+    "schema.compatibility" = "NONE"
+    "partitioner.class"    = "io.confluent.connect.storage.partitioner.DefaultPartitioner"
+    "path.format"          = "year=!{timestamp:YYYY}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}"
+    "timezone"             = "UTC"
+    "key.converter"        = "org.apache.kafka.connect.storage.StringConverter"
+    "value.converter"      = "org.apache.kafka.connect.storage.StringConverter"
   }
 }
 
@@ -103,10 +100,7 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      bootstrap_servers = join(",", [
-        "b-1.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9096",
-        "b-2.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9096"
-      ])
+      bootstrap_servers = data.aws_msk_cluster.selected.bootstrap_brokers_sasl_iam
       vpc {
         security_groups = var.connect_config.security_groups
         subnets         = var.connect_config.subnet_ids
@@ -114,9 +108,9 @@ resource "aws_mskconnect_connector" "this" {
     }
   }
 
-kafka_cluster_client_authentication {
-  authentication_type = "NONE"
-}
+  kafka_cluster_client_authentication {
+    authentication_type = "IAM"
+  }
 
   kafka_cluster_encryption_in_transit {
     encryption_type = "TLS"
@@ -143,15 +137,4 @@ kafka_cluster_client_authentication {
 
   service_execution_role_arn = var.connect_config.create_iam_role ? aws_iam_role.connect_execution[0].arn : null
   tags                       = var.tags
-}
-
-#############################################
-# Associate SCRAM secret with MSK cluster
-#############################################
-# Associate the secret
-resource "aws_msk_scram_secret_association" "this" {
-  cluster_arn     = data.aws_msk_cluster.selected.arn
-  secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.arn]
-
-  depends_on = [aws_mskconnect_connector.this]
 }
