@@ -81,43 +81,6 @@ variable "mwaa_config" {
   })
 }
 
-variable "connect_config" {
-  description = "MSK Connect configuration"
-  type = object({
-    name               = string
-    kafka_cluster_name = string
-    kafkaconnect_version      = string
-    s3_bucket_key      = string
-    create_iam_role    = optional(bool, true)
-    security_groups    = list(string)
-    subnet_ids         = list(string)
-
-    scaling = object({
-      mcu_count    = number
-      worker_count = number
-    })
-
-    topic_config = object({
-      create      = bool
-      topic_name  = string
-      partitions  = optional(number, 1)
-      replication = optional(number, 2)
-    })
-
-    s3_access = list(object({
-      bucket_key = string
-      actions    = list(string)
-    }))
-
-    connect_plugins = optional(list(object({
-      name       = string
-      file_key   = string
-      bucket_key = string
-    })), [])
-  })
-}
-
-
 
 #########################
 # Tags
