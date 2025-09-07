@@ -146,3 +146,58 @@ data "aws_iam_policy_document" "mwaa" {
     ]
   }
 }
+
+# Existing MSK cluster (already provisioned)
+data "aws_msk_cluster" "selected" {
+  cluster_name = var.connect_config.kafka_cluster_name
+}
+
+# Policy JSON for MSK Connect execution role
+data "aws_iam_policy_document" "connect_execution" {
+  statement {
+    sid     = "AllowMSKCluster"
+    effect  = "Allow"
+    actions = ["kafka-cluster:Connect", "kafka-cluster:DescribeCluster"]
+    resources = [
+      "arn:aws:kafka:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:cluster/*"
+    ]
+  }
+
+  statement {
+    sid     = "AllowTopicAccess"
+    effect  = "Allow"
+    actions = ["kafka-cluster:CreateTopic", "kafka-cluster:WriteData", "kafka-cluster:ReadData", "kafka-cluster:DescribeTopic"]
+    resources = [
+      "arn:aws:kafka:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:topic/*"
+    ]
+  }
+
+  statement {
+    sid     = "AllowGroupAccess"
+    effect  = "Allow"
+    actions = ["kafka-cluster:AlterGroup", "kafka-cluster:DescribeGroup"]
+    resources = [
+      "arn:aws:kafka:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:group/*"
+    ]
+  }
+
+  statement {
+    sid     = "AllowCloudWatchLogs"
+    effect  = "Allow"
+    actions = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["*"]
+  }
+
+  dynamic "statement" {
+    for_each = var.connect_config.s3_access
+    content {
+      sid     = "AllowS3Access-${statement.value.bucket_key}"
+      effect  = "Allow"
+      actions = statement.value.actions
+      resources = [
+        "arn:aws:s3:::${var.s3_config[statement.value.bucket_key].bucket_name}",
+        "arn:aws:s3:::${var.s3_config[statement.value.bucket_key].bucket_name}/*"
+      ]
+    }
+  }
+}
