@@ -104,8 +104,8 @@ resource "aws_mskconnect_connector" "this" {
   kafka_cluster {
     apache_kafka_cluster {
       bootstrap_servers = join(",", [
-        "b-1.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9094",
-        "b-2.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9094"
+        "b-1.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9096",
+        "b-2.${var.connect_config.kafka_cluster_name}.vt3rrr.c23.kafka.us-east-1.amazonaws.com:9096"
       ])
       vpc {
         security_groups = var.connect_config.security_groups
@@ -114,9 +114,9 @@ resource "aws_mskconnect_connector" "this" {
     }
   }
 
-  kafka_cluster_client_authentication {
-    authentication_type = "NONE" # SCRAM handled via secret association
-  }
+kafka_cluster_client_authentication {
+  authentication_type = "NONE"
+}
 
   kafka_cluster_encryption_in_transit {
     encryption_type = "TLS"
@@ -148,11 +148,10 @@ resource "aws_mskconnect_connector" "this" {
 #############################################
 # Associate SCRAM secret with MSK cluster
 #############################################
+# Associate the secret
 resource "aws_msk_scram_secret_association" "this" {
   cluster_arn     = data.aws_msk_cluster.selected.arn
   secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.arn]
 
-  depends_on = [
-    aws_mskconnect_connector.this
-  ]
+  depends_on = [aws_mskconnect_connector.this]
 }
