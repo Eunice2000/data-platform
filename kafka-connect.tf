@@ -143,15 +143,7 @@ resource "aws_mskconnect_connector" "this" {
   tags                       = var.tags
 }
 
-#############################################
-# Associate SCRAM secret with MSK cluster
-#############################################
-resource "aws_msk_scram_secret_association" "this" {
-  cluster_arn     = data.aws_msk_cluster.selected.arn
-  secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.arn]
 
-  depends_on = [aws_mskconnect_connector.this]
-}
 
 #############################################
 # VPC Endpoint for S3
