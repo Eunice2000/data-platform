@@ -103,7 +103,7 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_sasl_scram
+      bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_tls
 
       vpc {
         security_groups = var.connect_config.security_groups
