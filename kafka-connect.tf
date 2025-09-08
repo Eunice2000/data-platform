@@ -114,7 +114,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "SASL_SCRAM_SHA_512"
+    authentication_type = "IAM"
   }
 
   kafka_cluster_encryption_in_transit {
