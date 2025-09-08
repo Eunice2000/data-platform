@@ -169,7 +169,7 @@ data "aws_msk_bootstrap_brokers" "selected" {
 # Fetch the MSK SCRAM secret from Secrets Manager
 #############################################
 data "aws_secretsmanager_secret" "msk_connect_secret" {
-  name = "AmazonMSK_microservice-cluster-new" # adjust to your actual secret name
+  name = "AmazonMSK_microservice-cluster-now" # adjust to your actual secret name
 }
 
 data "aws_secretsmanager_secret_version" "msk_connect_secret" {
