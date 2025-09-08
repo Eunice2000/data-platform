@@ -103,7 +103,7 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_sasl_scram
+      bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_sasl_iam
 
       vpc {
         security_groups = var.connect_config.security_groups
@@ -113,7 +113,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "NONE"
+    authentication_type = "IAM"
   }
 
   kafka_cluster_encryption_in_transit {
@@ -157,11 +157,11 @@ resource "aws_msk_scram_secret_association" "this" {
 # VPC Endpoint for S3
 #############################################
 resource "aws_vpc_endpoint" "s3_gateway" {
+  count             = var.connect_config.create_s3_endpoint ? 1 : 0
   vpc_id            = var.connect_config.vpc_id
   service_name      = "com.amazonaws.${data.aws_region.current.id}.s3"
   vpc_endpoint_type = "Gateway"
-
-  route_table_ids = var.connect_config.route_table_ids
+  route_table_ids   = var.connect_config.route_table_ids
 
   tags = merge(
     var.tags,
