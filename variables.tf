@@ -84,13 +84,13 @@ variable "mwaa_config" {
 variable "connect_config" {
   description = "MSK Connect configuration"
   type = object({
-    name               = string
-    kafka_cluster_name = string
-    kafkaconnect_version      = string
-    s3_bucket_key      = string
-    create_iam_role    = optional(bool, true)
-    security_groups    = list(string)
-    subnet_ids         = list(string)
+    name                  = string
+    kafka_cluster_name    = string
+    kafkaconnect_version  = string
+    s3_bucket_key         = string
+    create_iam_role       = optional(bool, true)
+    security_groups       = list(string)
+    subnet_ids            = list(string)
 
     scaling = object({
       mcu_count    = number
@@ -114,6 +114,9 @@ variable "connect_config" {
       file_key   = string
       bucket_key = string
     })), [])
+
+    vpc_id          = string
+    route_table_ids = list(string)
   })
 }
 

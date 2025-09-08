@@ -103,7 +103,6 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      # ✅ Use SASL/SCRAM brokers (private cluster with auth)
       bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_sasl_scram
 
       vpc {
@@ -114,7 +113,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "IAM"
+    authentication_type = "NONE"
   }
 
   kafka_cluster_encryption_in_transit {
@@ -152,4 +151,20 @@ resource "aws_msk_scram_secret_association" "this" {
   secret_arn_list = [data.aws_secretsmanager_secret_version.msk_connect_secret.arn]
 
   depends_on = [aws_mskconnect_connector.this]
+}
+
+#############################################
+# VPC Endpoint for S3
+#############################################
+resource "aws_vpc_endpoint" "s3_gateway" {
+  vpc_id            = var.connect_config.vpc_id
+  service_name      = "com.amazonaws.${data.aws_region.current.id}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = var.connect_config.route_table_ids
+
+  tags = merge(
+    var.tags,
+    { Name = "${var.connect_config.name}-s3-endpoint" }
+  )
 }
