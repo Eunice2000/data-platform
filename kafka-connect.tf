@@ -103,7 +103,7 @@ resource "aws_mskconnect_connector" "this" {
 
   kafka_cluster {
     apache_kafka_cluster {
-      bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_sasl_iam
+      bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_sasl_scram
 
       vpc {
         security_groups = var.connect_config.security_groups
@@ -113,7 +113,7 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   kafka_cluster_client_authentication {
-    authentication_type = "IAM"
+    authentication_type = "NONE"
   }
 
   kafka_cluster_encryption_in_transit {
