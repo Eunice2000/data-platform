@@ -161,6 +161,44 @@ data "aws_msk_bootstrap_brokers" "selected" {
   cluster_arn = data.aws_msk_cluster.selected.arn
 }
 
+#############################################
+# Fetch the specific security group used by MSK cluster
+#############################################
+data "aws_security_group" "msk" {
+  filter {
+    name   = "tag:Name"
+    values = [var.connect_config.kafka_cluster_name]
+  }
+}
+
+#############################################
+# Fetch VPC data from the security group
+#############################################
+data "aws_vpc" "selected" {
+  id = data.aws_security_group.msk.vpc_id
+}
+
+#############################################
+# Fetch all private subnets in the VPC
+#############################################
+data "aws_subnets" "private" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.selected.id]
+  }
+
+  filter {
+    name   = "tag:Name"
+    values = ["*-private-*"]
+  }
+}
+
+#############################################
+# Fetch ALL route tables for the VPC (for S3 endpoint)
+#############################################
+data "aws_route_tables" "selected" {
+  vpc_id = data.aws_vpc.selected.id
+}
 
 #############################################
 # Policy JSON for MSK Connect execution role

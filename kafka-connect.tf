@@ -1,66 +1,10 @@
 #############################################
-# IAM Role + Policy (if enabled)
-#############################################
-resource "aws_iam_role" "connect_execution" {
-  count = var.connect_config.create_iam_role ? 1 : 0
-
-  name = "${var.connect_config.name}-execution-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect    = "Allow",
-      Principal = { Service = "kafkaconnect.amazonaws.com" },
-      Action    = "sts:AssumeRole"
-    }]
-  })
-
-  tags = var.tags
-}
-
-resource "aws_iam_policy" "connect_policy" {
-  count  = var.connect_config.create_iam_role ? 1 : 0
-  name   = "${var.connect_config.name}-policy"
-  policy = data.aws_iam_policy_document.connect_execution.json
-}
-
-resource "aws_iam_role_policy_attachment" "connect_execution_attach" {
-  count      = var.connect_config.create_iam_role ? 1 : 0
-  role       = aws_iam_role.connect_execution[0].name
-  policy_arn = aws_iam_policy.connect_policy[0].arn
-}
-
-#############################################
-# CloudWatch Log Group
-#############################################
-resource "aws_cloudwatch_log_group" "mskconnect" {
-  name              = "/aws/mskconnect/${var.connect_config.name}"
-  retention_in_days = 14
-  tags              = var.tags
-}
-
-#############################################
-# Custom Plugins
-#############################################
-resource "aws_mskconnect_custom_plugin" "s3_plugin" {
-  for_each     = { for p in var.connect_config.connect_plugins : p.name => p }
-  name         = "${var.connect_config.name}-${each.key}"
-  content_type = "ZIP"
-
-  location {
-    s3 {
-      bucket_arn = "arn:aws:s3:::${var.s3_config[each.value.bucket_key].bucket_name}"
-      file_key   = each.value.file_key
-    }
-  }
-
-  tags = var.tags
-}
-
-#############################################
-# Connector Configuration
+# Local Values for Kafka Connect
 #############################################
 locals {
+  # Use the same subnet selection logic as MSK cluster creation
+  msk_connect_subnets = slice(data.aws_subnets.private.ids, 0, 2)
+
   connector_configuration = {
     "connector.class"                     = "io.confluent.connect.s3.S3SinkConnector"
     "s3.region"                           = data.aws_region.current.id
@@ -78,6 +22,80 @@ locals {
     "value.converter"                     = "org.apache.kafka.connect.json.JsonConverter"
     "s3.part.size"                        = "5242880"
   }
+}
+
+#############################################
+# IAM Role + Policy (if enabled)
+#############################################
+resource "aws_iam_role" "connect_execution" {
+  count = var.connect_config.create_iam_role ? 1 : 0
+
+  name = "${var.connect_config.name}-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "kafkaconnect.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = merge(
+    var.tags,
+    { Name = "${var.connect_config.name}-execution-role" }
+  )
+}
+
+resource "aws_iam_policy" "connect_policy" {
+  count  = var.connect_config.create_iam_role ? 1 : 0
+  name   = "${var.connect_config.name}-policy"
+  policy = data.aws_iam_policy_document.connect_execution.json
+
+  tags = merge(
+    var.tags,
+    { Name = "${var.connect_config.name}-policy" }
+  )
+}
+
+resource "aws_iam_role_policy_attachment" "connect_execution_attach" {
+  count      = var.connect_config.create_iam_role ? 1 : 0
+  role       = aws_iam_role.connect_execution[0].name
+  policy_arn = aws_iam_policy.connect_policy[0].arn
+}
+
+#############################################
+# CloudWatch Log Group
+#############################################
+resource "aws_cloudwatch_log_group" "mskconnect" {
+  name              = "/aws/mskconnect/${var.connect_config.name}"
+  retention_in_days = 14
+  
+  tags = merge(
+    var.tags,
+    { Name = "/aws/mskconnect/${var.connect_config.name}" }
+  )
+}
+
+#############################################
+# Custom Plugins
+#############################################
+resource "aws_mskconnect_custom_plugin" "s3_plugin" {
+  for_each     = { for p in var.connect_config.connect_plugins : p.name => p }
+  name         = "${var.connect_config.name}-${each.key}"
+  content_type = "ZIP"
+
+  location {
+    s3 {
+      bucket_arn = "arn:aws:s3:::${var.s3_config[each.value.bucket_key].bucket_name}"
+      file_key   = each.value.file_key
+    }
+  }
+
+  tags = merge(
+    var.tags,
+    { Name = "${var.connect_config.name}-${each.key}-plugin" }
+  )
 }
 
 #############################################
@@ -103,8 +121,8 @@ resource "aws_mskconnect_connector" "this" {
       bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_tls
 
       vpc {
-        security_groups = var.connect_config.security_groups
-        subnets         = var.connect_config.subnet_ids
+        security_groups = [data.aws_security_group.msk.id] # Use the same SG as MSK cluster
+        subnets         = local.msk_connect_subnets
       }
     }
   }
@@ -137,20 +155,22 @@ resource "aws_mskconnect_connector" "this" {
   }
 
   service_execution_role_arn = var.connect_config.create_iam_role ? aws_iam_role.connect_execution[0].arn : null
-  tags                       = var.tags
+  
+  tags = merge(
+    var.tags,
+    { Name = var.connect_config.name }
+  )
 }
-
-
 
 #############################################
 # VPC Endpoint for S3
 #############################################
 resource "aws_vpc_endpoint" "s3_gateway" {
   count             = var.connect_config.create_s3_endpoint ? 1 : 0
-  vpc_id            = var.connect_config.vpc_id
+  vpc_id            = data.aws_vpc.selected.id
   service_name      = "com.amazonaws.${data.aws_region.current.id}.s3"
   vpc_endpoint_type = "Gateway"
-  route_table_ids   = var.connect_config.route_table_ids
+  route_table_ids   = data.aws_route_tables.selected.ids
 
   tags = merge(
     var.tags,
