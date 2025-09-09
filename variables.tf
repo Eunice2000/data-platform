@@ -49,7 +49,7 @@ variable "mwaa_config" {
     mwaa_name     = string
     s3_dags_path  = string
     s3_bucket_key = string
-    s3_access     = list(object({
+    s3_access = list(object({
       bucket_key = string
       actions    = list(string)
     }))
@@ -58,14 +58,14 @@ variable "mwaa_config" {
     airflow_version     = optional(string, "2.8.1")
 
     # IAM role settings
-    create_iam_role            = optional(bool, false)
-    iam_role_name              = optional(string, null)
-    additional_principal_arns  = optional(list(string), [])
+    create_iam_role               = optional(bool, false)
+    iam_role_name                 = optional(string, null)
+    additional_principal_arns     = optional(list(string), [])
     iam_role_permissions_boundary = optional(string, null)
-    force_detach_policies      = optional(bool, false)
-    iam_role_additional_policies = optional(map(string), {})
-    iam_role_path              = optional(string, "/")
-    execution_role_arn         = optional(string, null)
+    force_detach_policies         = optional(bool, false)
+    iam_role_additional_policies  = optional(map(string), {})
+    iam_role_path                 = optional(string, "/")
+    execution_role_arn            = optional(string, null)
 
     # Logging configuration
     logging_configuration = optional(any, null)
@@ -77,7 +77,7 @@ variable "mwaa_config" {
 
     # New optional attributes
     airflow_configuration_options = optional(map(string), {}) # for Airflow config
-  
+
   })
 }
 
@@ -96,9 +96,9 @@ variable "connect_config" {
     subnet_ids           = list(string)
 
     # 👇 New additions
-    vpc_id              = string
-    route_table_ids     = list(string)
-    create_s3_endpoint  = optional(bool, false)
+    vpc_id             = string
+    route_table_ids    = list(string)
+    create_s3_endpoint = optional(bool, false)
 
     scaling = object({
       mcu_count    = number
@@ -106,10 +106,8 @@ variable "connect_config" {
     })
 
     topic_config = object({
-      create      = bool
-      topic_name  = string
-      partitions  = optional(number, 1)
-      replication = optional(number, 2)
+      create     = bool
+      topic_name = list(string)
     })
 
     s3_access = list(object({
