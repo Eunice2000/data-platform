@@ -4,6 +4,9 @@
 locals {
   # Use the same subnet selection logic as MSK cluster creation
   msk_connect_subnets = slice(data.aws_subnets.private.ids, 0, 2)
+  
+  # Get security group IDs from MSK cluster
+  msk_security_group_ids = tolist(data.aws_msk_cluster.selected.broker_node_group_info[0].security_groups)
 
   connector_configuration = {
     "connector.class"                     = "io.confluent.connect.s3.S3SinkConnector"
@@ -121,7 +124,8 @@ resource "aws_mskconnect_connector" "this" {
       bootstrap_servers = data.aws_msk_bootstrap_brokers.selected.bootstrap_brokers_tls
 
       vpc {
-        security_groups = [data.aws_security_group.msk.id] # Use the same SG as MSK cluster
+        # Use security groups directly from MSK cluster
+        security_groups = local.msk_security_group_ids
         subnets         = local.msk_connect_subnets
       }
     }

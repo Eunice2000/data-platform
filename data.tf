@@ -162,20 +162,15 @@ data "aws_msk_bootstrap_brokers" "selected" {
 }
 
 #############################################
-# Fetch the specific security group used by MSK cluster
+# Get VPC from one of the MSK cluster's subnets
 #############################################
-data "aws_security_group" "msk" {
-  filter {
-    name   = "description"
-    values = ["Security group for ${var.connect_config.kafka_cluster_name}"]
-  }
+data "aws_subnet" "msk_subnet" {
+  # Get the first subnet from the first broker node group
+  id = tolist(data.aws_msk_cluster.selected.broker_node_group_info[0].client_subnets)[0]
 }
 
-#############################################
-# Fetch VPC data from the security group
-#############################################
 data "aws_vpc" "selected" {
-  id = data.aws_security_group.msk.vpc_id
+  id = data.aws_subnet.msk_subnet.vpc_id
 }
 
 #############################################
