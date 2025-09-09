@@ -166,8 +166,8 @@ data "aws_msk_bootstrap_brokers" "selected" {
 #############################################
 data "aws_security_group" "msk" {
   filter {
-    name   = "tag:Name"
-    values = [var.connect_config.kafka_cluster_name]
+    name   = "description"
+    values = ["Security group for ${var.connect_config.kafka_cluster_name}"]
   }
 }
 
