@@ -15,7 +15,7 @@ data "aws_iam_policy_document" "mwaa_assume" {
     actions = ["sts:AssumeRole"]
 
     principals {
-      type        = "Service"
+      type = "Service"
       identifiers = [
         "airflow.amazonaws.com",
         "airflow-env.amazonaws.com",
@@ -68,7 +68,7 @@ data "aws_iam_policy_document" "mwaa" {
 
   # CloudWatch Logs
   statement {
-    effect  = "Allow"
+    effect = "Allow"
     actions = [
       "logs:CreateLogStream",
       "logs:CreateLogGroup",
@@ -84,7 +84,7 @@ data "aws_iam_policy_document" "mwaa" {
   }
 
   statement {
-    effect  = "Allow"
+    effect = "Allow"
     actions = [
       "logs:DescribeLogGroups",
       "cloudwatch:PutMetricData",
@@ -96,7 +96,7 @@ data "aws_iam_policy_document" "mwaa" {
 
   # SQS access
   statement {
-    effect  = "Allow"
+    effect = "Allow"
     actions = [
       "sqs:ChangeMessageVisibility",
       "sqs:DeleteMessage",
@@ -145,11 +145,7 @@ data "aws_iam_policy_document" "mwaa" {
       "arn:${data.aws_partition.current.id}:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/*"
     ]
   }
-}############################################################
-# Data sources for existing MSK cluster and SCRAM secret
-############################################################
-
-
+}
 
 ##############################################
 # Fetch the existing MSK cluster
@@ -198,9 +194,9 @@ data "aws_iam_policy_document" "connect_execution" {
   }
 
   statement {
-    sid     = "AllowCloudWatchLogs"
-    effect  = "Allow"
-    actions = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    sid       = "AllowCloudWatchLogs"
+    effect    = "Allow"
+    actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
     resources = ["*"]
   }
 

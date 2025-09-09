@@ -62,24 +62,24 @@ resource "aws_mskconnect_custom_plugin" "s3_plugin" {
 #############################################
 locals {
   connector_configuration = {
-    "connector.class"           = "io.confluent.connect.s3.S3SinkConnector"
-    "s3.region"                 = data.aws_region.current.id
-    "flush.size"                = "1"
-    "schema.compatibility"      = "NONE"
-    "tasks.max"                 = "1"
-    "topics"                    = var.connect_config.topic_config.topic_name
-    "timezone"                  = "UTC"
-    "rotate.interval.ms"        = "600000"
-    "format.class"              = "io.confluent.connect.s3.format.json.JsonFormat"
-    "partitioner.class"         = "io.confluent.connect.storage.partitioner.DefaultPartitioner"
-    "storage.class"             = "io.confluent.connect.s3.storage.S3Storage"
-    "s3.bucket.name"            = var.s3_config[var.connect_config.s3_bucket_key].bucket_name
-    "path.format"               = "year=!{timestamp:YYYY}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}"
-    "key.converter"             = "org.apache.kafka.connect.storage.StringConverter"
-    "value.converter"           = "org.apache.kafka.connect.storage.StringConverter"
-    "offset.storage.partitions" = "1"
-    "status.storage.partitions" = "1"
-    "config.storage.partitions" = "1"
+    "connector.class"                     = "io.confluent.connect.s3.S3SinkConnector"
+    "s3.region"                           = data.aws_region.current.id
+    "flush.size"                          = "1"
+    "schema.compatibility"                = "NONE"
+    "tasks.max"                           = "1"
+    "topics"                              = join(",", var.connect_config.topic_config.topic_name)
+    "timezone"                            = "UTC"
+    "rotate.interval.ms"                  = "600000"
+    "format.class"                        = "io.confluent.connect.s3.format.protobuf.ProtobufFormat"
+    "partitioner.class"                   = "io.confluent.connect.storage.partitioner.DefaultPartitioner"
+    "storage.class"                       = "io.confluent.connect.s3.storage.S3Storage"
+    "s3.bucket.name"                      = var.s3_config[var.connect_config.s3_bucket_key].bucket_name
+    "path.format"                         = "year=!{timestamp:YYYY}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}"
+    "key.converter"                       = "io.confluent.connect.protobuf.ProtobufConverter"
+    "value.converter"                     = "io.confluent.connect.protobuf.ProtobufConverter"
+    "value.converter.schema.registry.url" = "http://13.53.133.170:8081"
+    "key.converter.schema.registry.url"   = "http://13.53.133.170:8081"
+    "s3.part.size"                        = "5242880"
   }
 }
 
