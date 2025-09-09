@@ -106,8 +106,10 @@ variable "connect_config" {
     })
 
     topic_config = object({
-      create     = bool
-      topic_name = list(string)
+      create      = bool
+      topic_name  = list(string) 
+      partitions  = optional(number, 1)
+      replication = optional(number, 2)
     })
 
     s3_access = list(object({
